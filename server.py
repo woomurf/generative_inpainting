@@ -71,25 +71,28 @@ def inpainting():
         time.sleep(CHECK_INTERVAL)
 
     io = req['output']
+    if io == "error":
+        return jsonify({'error': 'Server error'}), 500
 
     return send_file(io, mimetype="image/png")
 
 def run(image, mask, checkpoint):
+    try:
+        output = inpaint(image, mask, model, checkpoint)
+        img = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+        
+        collections = g.get_all_collection_keys()
+        for name in collections:
+            g.clear_collection(name)
 
-    output = inpaint(image, mask, model, checkpoint)
-    img = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
-    
-    collections = g.get_all_collection_keys()
-    for name in collections:
-        g.clear_collection(name)
+        result = Image.fromarray(img)
+        io = BytesIO()
+        result.save(io,"PNG")
+        io.seek(0)
 
-    result = Image.fromarray(img)
-    io = BytesIO()
-    result.save(io,"PNG")
-    io.seek(0)
-
-    return io
-
+        return io
+    except Exception as e:
+        return "error"
 
 @app.route("/healthz", methods=["GET"])
 def checkHealth():
